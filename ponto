@@ -1,0 +1,596 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Ponto</title>
+<style>
+:root{--bg:#f4f6fa;--card:#fff;--tx:#1d2433;--mu:#6b7385;--pr:#2563eb;--bd:#e3e7ef;--ok:#16a34a}
+@media(prefers-color-scheme:dark){:root{--bg:#10141c;--card:#1a202c;--tx:#e8ecf4;--mu:#94a0b8;--bd:#2a3244}}
+*{box-sizing:border-box}
+body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;background:var(--bg);color:var(--tx)}
+main{max-width:860px;margin:0 auto;padding:16px}
+nav{display:flex;gap:8px;margin-bottom:16px}
+nav button{flex:1;padding:10px;border:1px solid var(--bd);background:var(--card);color:var(--tx);border-radius:10px;font-size:15px;cursor:pointer}
+nav button.on{background:var(--pr);color:#fff;border-color:var(--pr)}
+section{display:none}section.on{display:block}
+.card{background:var(--card);border:1px solid var(--bd);border-radius:14px;padding:16px;margin-bottom:16px}
+.center{text-align:center}
+#clock{font-size:44px;font-weight:700;letter-spacing:1px}
+#date{color:var(--mu);margin-bottom:18px;text-transform:capitalize}
+#punch{width:200px;height:200px;border-radius:50%;border:none;background:var(--pr);color:#fff;font-size:22px;font-weight:700;cursor:pointer;box-shadow:0 8px 24px rgba(37,99,235,.35);transition:transform .1s}
+#punch:active{transform:scale(.95)}
+#punch:disabled{background:#8b93a7;box-shadow:none;cursor:not-allowed}
+#next{margin-top:14px;color:var(--mu)}
+.wrap{overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:14px;white-space:nowrap}
+th,td{padding:8px 10px;border-bottom:1px solid var(--bd);text-align:center}
+th{background:var(--bg);font-weight:600}
+td:nth-child(2){text-align:left}
+tr.we td{color:var(--mu)}
+tr.today td{background:rgba(37,99,235,.1)}
+.ed{border:1px solid var(--bd);background:var(--card);color:var(--tx);border-radius:8px;padding:4px 8px;cursor:pointer}
+.btn{padding:10px 14px;border:none;border-radius:10px;background:var(--pr);color:#fff;font-size:15px;cursor:pointer}
+.btn.sec{background:var(--card);color:var(--tx);border:1px solid var(--bd)}
+.bar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:12px}
+input[type=month],input[type=time],input[type=url]{padding:9px;border:1px solid var(--bd);border-radius:8px;background:var(--bg);color:var(--tx);font-size:15px}
+input[type=url]{width:100%}
+pre{background:var(--bg);border:1px solid var(--bd);border-radius:8px;padding:10px;overflow:auto;font-size:12px;max-height:260px}
+dialog{border:1px solid var(--bd);border-radius:14px;background:var(--card);color:var(--tx);max-width:380px;width:92%}
+dialog label{display:flex;justify-content:space-between;align-items:center;margin:10px 0;gap:10px}
+#toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:#1d2433;color:#fff;padding:10px 16px;border-radius:10px;opacity:0;pointer-events:none;transition:opacity .3s;max-width:90%;text-align:center;z-index:9}
+#toast.show{opacity:1}
+small,.mu{color:var(--mu)}
+header#top{padding:2px 0 14px;font-size:18px}
+tr.red td{background:rgba(220,38,38,.14);color:#dc2626;font-weight:700}
+@media(prefers-color-scheme:dark){tr.red td{color:#f87171}}
+.form label{display:block;margin:10px 0}
+.form input[type=text],.form input[type=email]{width:100%;padding:9px;border:1px solid var(--bd);border-radius:8px;background:var(--bg);color:var(--tx);font-size:15px;margin-top:4px}
+.days{display:flex;flex-wrap:wrap;gap:8px;margin:8px 0 14px}
+.days label{display:inline-flex;gap:4px;align-items:center;margin:0;padding:6px 10px;border:1px solid var(--bd);border-radius:8px}
+#ident{line-height:1.7;margin-bottom:12px}
+summary{cursor:pointer}
+</style>
+</head>
+<body>
+<main>
+<header id="top"></header>
+<nav>
+  <button data-tab="home" class="on">Ponto</button>
+  <button data-tab="sheet">Planilha</button>
+  <button data-tab="cfg">Google Sheets</button>
+</nav>
+
+<section id="home" class="on">
+  <details class="card" id="cad"><summary><b>Cadastro do colaborador</b></summary>
+    <div class="form">
+      <label>Nome completo<input id="f_nome" type="text" autocomplete="name"></label>
+      <label>Cargo<input id="f_cargo" type="text"></label>
+      <label>E-mail<input id="f_email" type="email"></label>
+      <div>Dias de trabalho<div id="f_dias" class="days"></div></div>
+      <label>ID de 4 dígitos (só se você já tem cadastro em outro aparelho)<input id="f_idin" type="text" inputmode="numeric" maxlength="4" placeholder="deixe vazio para gerar um novo"></label>
+      <div class="mu" id="f_id"></div>
+      <button class="btn" id="saveprof">Salvar cadastro</button>
+    </div>
+  </details>
+  <div class="card center">
+    <div id="clock">--:--:--</div>
+    <div id="date"></div>
+    <button id="punch">BATER<br>PONTO</button>
+    <div id="next"></div>
+    <div id="syncst" class="mu" style="font-size:13px;margin-top:6px"></div>
+  </div>
+  <div class="card">
+    <h3 style="margin-top:0">Últimos registros</h3>
+    <div class="wrap"><table id="hist"></table></div>
+    <small>Use ✎ para corrigir um horário esquecido ou errado.</small>
+  </div>
+</section>
+
+<section id="sheet">
+  <div class="card">
+    <div class="bar">
+      <input type="month" id="month">
+      <button class="btn" id="copy">Copiar para Google Planilhas</button>
+      <button class="btn sec" id="csv">Baixar CSV</button>
+    </div>
+    <div id="ident"></div>
+    <div class="wrap"><table id="grid"></table></div>
+    <p><small>Ao copiar, abra o Google Planilhas, clique na célula A1 e use Ctrl+V. A tabela já vai com cabeçalho e todos os dias do mês.</small></p>
+  </div>
+</section>
+
+<section id="cfg">
+  <div class="card">
+    <h3 style="margin-top:0">Envio automático para o Google Planilhas</h3>
+    <p class="mu">Opcional. Sem o link abaixo, tudo fica salvo só neste navegador.</p>
+    <ol>
+      <li>Crie uma planilha no Google Planilhas.</li>
+      <li>Vá em <b>Extensões &gt; Apps Script</b>, apague o conteúdo e cole o código abaixo.</li>
+      <li>Clique em <b>Implantar &gt; Nova implantação &gt; App da Web</b>. Em "Executar como" escolha <b>Eu</b> e em "Quem pode acessar" escolha <b>Qualquer pessoa</b>.</li>
+      <li>Autorize, copie o link terminado em <code>/exec</code> e cole aqui:</li>
+    </ol>
+    <input type="url" id="url" placeholder="https://script.google.com/macros/s/.../exec">
+    <div class="bar" style="margin-top:10px">
+      <button class="btn" id="saveurl">Salvar link</button>
+      <button class="btn sec" id="sendall">Sincronizar agora</button>
+      <button class="btn sec" id="openss">Abrir minha planilha</button>
+    </div>
+    <p class="mu">Cada colaborador recebe um ID de 4 números (ex.: 0472), gerado ao salvar o cadastro. O ID direciona os horários para a planilha certa: o primeiro colaborador usa esta planilha e cada novo colaborador ganha uma planilha própria no seu Drive, listada na aba _colaboradores. Em outro aparelho, use o mesmo link e informe o ID no cadastro (ou o mesmo nome e e-mail) para unir os dados; se dois aparelhos alterarem o mesmo horário, vale o mais recente. As abas de cada mês têm o formato Outubro 2026. IMPORTANTE ao colar o código novo: no Apps Script, escolha a função autorizar, clique em Executar e aceite as permissões (necessárias para criar planilhas), e só então reimplante (Implantar > Gerenciar implantações > Editar > Nova versão)</p>
+    <button class="btn sec" id="copyscript" style="margin-bottom:8px">Copiar código do Apps Script</button>
+    <pre id="script"></pre>
+  </div>
+</section>
+</main>
+
+<dialog id="dlg">
+  <h3 style="margin-top:0">Corrigir ponto</h3>
+  <div id="dlgdate" class="mu"></div>
+  <div id="dlgfields"></div>
+  <div class="bar" style="margin-top:14px">
+    <button class="btn" id="dsave">Salvar</button>
+    <button class="btn sec" id="dclear">Limpar dia</button>
+    <button class="btn sec" id="dcancel">Cancelar</button>
+  </div>
+</dialog>
+<div id="toast"></div>
+
+<script>
+const NOMES=['Horário de entrada','Entrada do almoço','Saída do almoço','Saída'];
+const SEM=['domingo','segunda-feira','terça-feira','quarta-feira','quinta-feira','sexta-feira','sábado'];
+const $=s=>document.querySelector(s);
+const pad=n=>String(n).padStart(2,'0');
+const key=d=>d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate());
+const br=k=>k.split('-').reverse().join('/');
+const dowOf=k=>{const [y,m,d]=k.split('-').map(Number);return new Date(y,m-1,d).getDay()};
+
+let S;
+try{S=JSON.parse(localStorage.getItem('ponto_v1'))}catch(e){}
+if(!S||!S.rec)S={rec:{},url:''};
+function save(){try{localStorage.setItem('ponto_v1',JSON.stringify(S))}catch(e){toast('Não foi possível salvar neste navegador')}}
+const get=k=>(S.rec[k]||['','','','']).slice();
+
+function toast(m){const t=$('#toast');t.textContent=m;t.classList.add('show');clearTimeout(toast.t);toast.t=setTimeout(()=>t.classList.remove('show'),3200)}
+
+/* ---------- constantes, feriados e cálculos ---------- */
+const ABR=['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'];
+const MESES=['janeiro','fevereiro','março','abril','maio','junho','julho','agosto','setembro','outubro','novembro','dezembro'];
+const esc=s=>String(s||'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+
+function pascoa(y){
+  const a=y%19,b=Math.floor(y/100),c=y%100,d=Math.floor(b/4),e=b%4,f=Math.floor((b+8)/25),g=Math.floor((b-f+1)/3),
+  h=(19*a+b-d-g+15)%30,i=Math.floor(c/4),k=c%4,l=(32+2*e+2*i-h-k)%7,m=Math.floor((a+11*h+22*l)/451),
+  mo=Math.floor((h+l-7*m+114)/31),da=(h+l-7*m+114)%31+1;
+  return new Date(y,mo-1,da);
+}
+const HOL={};
+function feriado(k){
+  const y=+k.slice(0,4);
+  if(!HOL[y]){
+    const f={'01-01':'Confraternização Universal','04-21':'Tiradentes','05-01':'Dia do Trabalho','09-07':'Independência','10-12':'Nossa Sra. Aparecida','11-02':'Finados','11-15':'Proclamação da República','11-20':'Consciência Negra','12-25':'Natal'};
+    const m={};for(const x in f)m[y+'-'+x]=f[x];
+    const p=pascoa(y);p.setDate(p.getDate()-2);m[key(p)]='Sexta-feira Santa';
+    HOL[y]=m;
+  }
+  return HOL[y][k]||'';
+}
+
+const mins=t=>t?(+t.slice(0,2))*60+(+t.slice(3,5)):0;
+const hm=m=>{const s=m<0?'-':'';m=Math.abs(m);return s+Math.floor(m/60)+':'+pad(m%60)};
+function worked(r){
+  let t=0;
+  if(r[0]&&r[1])t+=mins(r[1])-mins(r[0]);
+  if(r[2]&&r[3])t+=mins(r[3])-mins(r[2]);
+  if(r[0]&&r[3]&&!r[1]&&!r[2])t=mins(r[3])-mins(r[0]);
+  return Math.max(t,0);
+}
+const done=r=>!!((r[0]&&r[1]&&r[2]&&r[3])||(r[0]&&r[3]&&!r[1]&&!r[2]));
+
+function obs(k){
+  const r=get(k),d=dowOf(k),h=feriado(k),n=r.filter(Boolean).length,w=worked(r);
+  const o=h?'Feriado: '+h:'';
+  if(!n)return o;
+  if(!done(r))return k===key(new Date())?(o||'Em andamento'):(o?o+' · ':'')+'Ponto incompleto';
+  if(d==0||h||!S.prof.dias.includes(d))return (o||(d==0?'Domingo':'Dia de folga'))+' · Hora extra ('+hm(w)+')';
+  if(w>480)return 'Hora extra (+'+hm(w-480)+')';
+  if(w<480)return 'Horas a compensar (-'+hm(480-w)+')';
+  return '';
+}
+
+function monthData(mes){
+  const [y,m]=mes.split('-').map(Number),n=new Date(y,m,0).getDate(),rows=[];
+  let wk=0,tot=0;
+  for(let d=1;d<=n;d++){
+    const k=mes+'-'+pad(d),r=get(k),w=worked(r),dw=dowOf(k);
+    wk+=w;tot+=w;
+    const fim=dw==0||d==n;
+    rows.push({k,r,w,dw,red:dw==0||!!feriado(k),sem:fim?hm(wk):'',o:obs(k)});
+    if(fim)wk=0;
+  }
+  return {rows,tot};
+}
+
+const HEADS=['Data','Dia da semana','Horário de entrada','Entrada do almoço','Saída do almoço','Saída','Total do dia','Total da semana','Observação'];
+function matriz(mes){
+  const {rows,tot}=monthData(mes),p=S.prof,[y,m]=mes.split('-'),M=[],red=[];
+  [['FOLHA DE PONTO',MESES[m-1]+' de '+y],['Colaborador',p.nome],['Cargo',p.cargo],['E-mail',p.email],
+   ['Dias de trabalho',p.dias.map(d=>ABR[d]).join(', ')],['ID',pid()],[]].forEach(l=>M.push(l.concat(Array(9-l.length).fill(''))));
+  const cab=M.length;M.push(HEADS);
+  rows.forEach(x=>{if(x.red)red.push(M.length);M.push([br(x.k),SEM[x.dw]].concat(x.r,[x.w?hm(x.w):'',x.sem,x.o]))});
+  M.push(['TOTAL DO MÊS','','','','','',hm(tot),'','']);
+  return {M,red,cab};
+}
+
+/* ---------- ID e sincronização entre aparelhos ---------- */
+const pid=()=>S.prof.id||'';
+const abaNome=mes=>{const [y,m]=mes.split('-'),n=MESES[m-1];return n[0].toUpperCase()+n.slice(1)+' '+y};
+function touch(k,is){const s=S.ts[k]=S.ts[k]||[0,0,0,0],n=Date.now();is.forEach(i=>s[i]=n)}
+function mergeIn(recs){
+  let ch=false;
+  for(const k in recs){
+    const a=recs[k],t=get(k),s=(S.ts[k]||[0,0,0,0]).slice();
+    for(let i=0;i<4;i++)if((a.ts[i]||0)>s[i]){t[i]=a.t[i]||'';s[i]=a.ts[i];ch=true}
+    S.rec[k]=t;S.ts[k]=s;
+  }
+  if(ch)save();
+  return ch;
+}
+const POST=(body,cors)=>fetch(S.url,Object.assign({method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify(body)},cors?{}:{mode:'no-cors'}));
+const setSync=t=>{const e=$('#syncst');if(e)e.textContent=t};
+function drawMonth(mes){
+  const x=matriz(mes);
+  return POST({acao:'planilha',id:pid(),mes,aba:abaNome(mes),matriz:x.M,vermelhos:x.red,cab:x.cab,rodape:x.M.length-1},false);
+}
+async function registrar(p){
+  const j=await (await POST({acao:'cadastrar',id:p.id||'',nome:p.nome,cargo:p.cargo,email:p.email,dias:p.dias},true)).json();
+  if(j.erro)return j;
+  S.prof=Object.assign({},p,j.perfil,{id:j.id});
+  if(j.url)S.link=j.url;
+  save();loadForm();render();
+  return j;
+}
+let fila=Promise.resolve();
+const agendar=f=>{fila=fila.then(()=>sync(f))};
+async function sync(forcar){
+  if(!S.url||!S.prof.nome)return null;
+  try{
+    if(!S.prof.id){const r=await registrar(S.prof);if(r.erro){if(forcar)toast(r.erro);setSync('⚠ '+r.erro);return false}}
+    const meses=[...new Set([key(new Date()).slice(0,7),$('#month').value].filter(Boolean))],recs={};
+    for(const k in S.rec)if(meses.includes(k.slice(0,7)))recs[k]={t:S.rec[k],ts:S.ts[k]||[0,0,0,0]};
+    const j=await (await POST({acao:'sync',id:pid(),meses,recs,perfil:S.prof.ts?S.prof:null},true)).json();
+    if(j.erro==='ID não cadastrado'&&!sync.rep){
+      sync.rep=true;S.prof.id='';S.link='';save();
+      toast('Planilha nova detectada. Gerando um novo ID...');
+      try{return await sync(true)}finally{sync.rep=false}
+    }
+    if(j.erro){if(forcar)toast(j.erro);setSync('⚠ '+j.erro);return false}
+    const ch=mergeIn(j.recs||{});
+    if(j.url)S.link=j.url;
+    const novoP=j.perfil&&j.perfil.ts>(S.prof.ts||0);
+    if(novoP)S.prof=Object.assign({},S.prof,j.perfil);
+    save();if(novoP)loadForm();
+    render();
+    if(forcar||ch||S.pend){await Promise.all(meses.map(drawMonth));S.pend=false;save()}
+    setSync('✔ Sincronizado às '+new Date().toTimeString().slice(0,5));
+    return true;
+  }catch(e){
+    if(forcar){S.pend=true;save();toast('Salvo aqui, mas a sincronização falhou')}
+    setSync('⚠ Sem sincronizar (salvo neste aparelho)');
+    return false;
+  }
+}
+
+/* ---------- bater ponto ---------- */
+function punch(){
+  const now=new Date(),k=key(now),r=get(k),i=r.indexOf('');
+  if(i<0){toast('Já existem 4 batidas hoje. Use ✎ para corrigir.');return}
+  const t=pad(now.getHours())+':'+pad(now.getMinutes());
+  const prev=r.filter(Boolean).pop();
+  if(prev===t&&!confirm('Já existe uma batida neste mesmo minuto. Bater de novo?'))return;
+  r[i]=t;S.rec[k]=r;touch(k,[i]);save();render();
+  toast(NOMES[i]+' registrada às '+t);
+  agendar(true);
+}
+
+/* ---------- relógio ---------- */
+function tick(){
+  const n=new Date();
+  $('#clock').textContent=pad(n.getHours())+':'+pad(n.getMinutes())+':'+pad(n.getSeconds());
+  $('#date').textContent=SEM[n.getDay()]+', '+br(key(n));
+  const k=key(n);
+  if(tick.k!==k){tick.k=k;render()}
+}
+
+/* ---------- tabelas ---------- */
+const HEAD=full=>'<tr><th>Data</th><th>Dia da semana</th>'+NOMES.map(n=>`<th>${n}</th>`).join('')+'<th>Total do dia</th>'+(full?'<th>Total da semana</th><th>Observação</th>':'')+'<th></th></tr>';
+function rowHTML(k,x){
+  const r=get(k),d=dowOf(k),h=feriado(k),w=worked(r);
+  const cls=(d==0||h?'red ':d==6?'we ':'')+(k===key(new Date())?'today':'');
+  return `<tr class="${cls}"><td>${br(k)}</td><td>${SEM[d]}</td>`+r.map(v=>`<td>${v||'—'}</td>`).join('')+
+    `<td><b>${w?hm(w):'—'}</b></td>`+(x?`<td><b>${x.sem}</b></td><td style="text-align:left">${esc(x.o)}</td>`:'')+
+    `<td><button class="ed" data-k="${k}" title="Corrigir">✎</button></td></tr>`;
+}
+function renderTop(){
+  const p=S.prof;
+  $('#top').innerHTML=p.nome?`<b>${esc(p.nome)}</b>${p.cargo?' · <span class="mu">'+esc(p.cargo)+'</span>':''}`:'<span class="mu">Preencha o cadastro do colaborador abaixo</span>';
+  document.title=p.nome?'Ponto — '+p.nome:'Ponto';
+  if(p.nome)$('#top').innerHTML+=`<br><small class="mu">ID: ${pid()||'pendente (salve o link da planilha)'}</small>`;
+  $('#f_id').textContent=pid()?'ID: '+pid():'O ID de 4 dígitos é gerado ao salvar o cadastro, com o link da planilha configurado';
+}
+function render(){
+  const hoje=key(new Date()),r=get(hoje),i=r.indexOf('');
+  $('#next').textContent=i<0?'Hoje: 4 batidas concluídas ✔':'Próxima batida: '+NOMES[i]+' ('+r.filter(Boolean).length+'/4 hoje)';
+  $('#punch').disabled=i<0;
+  const ks=Object.keys(S.rec).filter(k=>S.rec[k].some(Boolean)).sort().reverse().slice(0,10);
+  $('#hist').innerHTML=HEAD(false)+(ks.length?ks.map(k=>rowHTML(k)).join(''):'<tr><td colspan="8" class="mu">Nenhum ponto batido ainda.</td></tr>');
+  renderTop();renderGrid();
+}
+function renderGrid(){
+  const mes=$('#month').value;if(!mes)return;
+  const {rows,tot}=monthData(mes),p=S.prof;
+  $('#ident').innerHTML=`<b>ID:</b> ${pid()||'—'}<br><b>Colaborador:</b> ${esc(p.nome)||'—'}<br><b>Cargo:</b> ${esc(p.cargo)||'—'} · <b>E-mail:</b> ${esc(p.email)||'—'}<br><b>Dias de trabalho:</b> ${p.dias.map(d=>ABR[d]).join(', ')||'—'}`;
+  $('#grid').innerHTML=HEAD(true)+rows.map(x=>rowHTML(x.k,x)).join('')+`<tr><th colspan="6">TOTAL DO MÊS</th><th>${hm(tot)}</th><th colspan="3"></th></tr>`;
+}
+const tsv=()=>matriz($('#month').value).M.map(l=>l.join('\t')).join('\n');
+function copyText(txt){
+  const fb=()=>{const a=document.createElement('textarea');a.value=txt;document.body.appendChild(a);a.select();let ok=false;try{ok=document.execCommand('copy')}catch(e){}a.remove();return ok};
+  const done=ok=>toast(ok?'Copiado! Use Ctrl+V para colar':'Não consegui copiar. Selecione e copie manualmente.');
+  if(navigator.clipboard&&window.isSecureContext)navigator.clipboard.writeText(txt).then(()=>done(true),()=>done(fb()));
+  else done(fb());
+}
+function slug(s){return (s||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-zA-Z0-9]+/g,'_').replace(/^_+|_+$/g,'')||'colaborador'}
+function downloadCSV(){
+  const mes=$('#month').value;
+  const csv=matriz(mes).M.map(l=>l.map(c=>'"'+String(c).replace(/"/g,'""')+'"').join(';')).join('\r\n');
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(new Blob(['\ufeff'+csv],{type:'text/csv;charset=utf-8'}));
+  a.download='folha-ponto_'+slug(S.prof.nome)+(pid()?'_'+pid():'')+'_'+mes+'.csv';a.click();
+}
+
+/* ---------- correção ---------- */
+let editK=null;
+function openEdit(k){
+  editK=k;const r=get(k);
+  $('#dlgdate').textContent=br(k)+' · '+SEM[dowOf(k)];
+  $('#dlgfields').innerHTML=NOMES.map((n,i)=>`<label>${n}<input type="time" data-i="${i}" value="${r[i]}"></label>`).join('');
+  $('#dlg').showModal();
+}
+function saveEdit(){
+  const v=[...document.querySelectorAll('#dlgfields input')].map(i=>i.value);
+  const filled=v.filter(Boolean);
+  if(JSON.stringify(filled)!==JSON.stringify(v.filter(Boolean).slice().sort())&&!confirm('Os horários não estão em ordem crescente. Salvar mesmo assim?'))return;
+  {const old=get(editK);v.forEach((x,i)=>{if(x!==old[i])touch(editK,[i])});S.rec[editK]=v}
+  save();render();$('#dlg').close();toast('Ponto corrigido');
+  agendar(true);
+}
+
+/* ---------- Apps Script ---------- */
+const GS=`var CAB_COLAB=['ID','Nome','Cargo','E-mail','ID da planilha','Link','Criado em'];
+
+function autorizar(){
+  var ss=SpreadsheetApp.getActiveSpreadsheet();
+  SpreadsheetApp.openById(ss.getId());
+  CacheService.getScriptCache();
+  LockService.getScriptLock();
+  Logger.log('Autorizado');
+}
+
+function doPost(e){
+  var lock=LockService.getScriptLock();
+  lock.waitLock(25000);
+  try{
+    var d=JSON.parse(e.postData.contents);
+    var mestre=SpreadsheetApp.getActiveSpreadsheet(), out;
+    if(d.acao==='cadastrar') out=cadastrar(mestre,d);
+    else {
+      var ss=planilhaDe(mestre,d.id);
+      if(!ss) out={erro:'ID não cadastrado'};
+      else if(d.acao==='planilha') out=desenhar(ss,d);
+      else out=sincronizar(mestre,ss,d);
+    }
+    return ContentService.createTextOutput(JSON.stringify(out))
+      .setMimeType(ContentService.MimeType.JSON);
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+function aba(ss,nome,cab){
+  var sh=ss.getSheetByName(nome);
+  if(!sh){
+    sh=ss.insertSheet(nome);
+    sh.getRange('A:Z').setNumberFormat('@');
+    sh.getRange(1,1,1,cab.length).setValues([cab]).setFontWeight('bold');
+  }
+  return sh;
+}
+
+function norm(s){ return String(s||'').toLowerCase().replace(/[^a-z0-9@.]/g,''); }
+
+function planilhaDe(mestre,id){
+  if(!id) return null;
+  var cache=CacheService.getScriptCache(), sid=cache.get('p'+id);
+  if(!sid){
+    var v=aba(mestre,'_colaboradores',CAB_COLAB).getDataRange().getValues();
+    for(var i=1;i<v.length;i++) if(String(v[i][0])===id){ sid=String(v[i][4]); break; }
+    if(sid) cache.put('p'+id,sid,21600);
+  }
+  if(!sid) return null;
+  return sid===mestre.getId()?mestre:SpreadsheetApp.openById(sid);
+}
+
+function cadastrar(mestre,d){
+  var sh=aba(mestre,'_colaboradores',CAB_COLAB);
+  var v=sh.getDataRange().getValues(), i, usados={}, achou=null;
+  for(i=1;i<v.length;i++){
+    usados[String(v[i][0])]=1;
+    if(d.id ? String(v[i][0])===d.id
+            : (d.email && norm(v[i][1])===norm(d.nome) && norm(v[i][3])===norm(d.email))) achou=String(v[i][0]);
+  }
+  if(d.id && !achou) return {erro:'ID não encontrado'};
+  if(achou){
+    var ss0=planilhaDe(mestre,achou);
+    return {id:achou,perfil:lerPerfil(ss0),url:ss0.getUrl()};
+  }
+  var id;
+  do{ id=('000'+Math.floor(Math.random()*10000)).slice(-4); }while(usados[id]);
+  var ss=(v.length<2)?mestre:SpreadsheetApp.create('Folha de Ponto');
+  var p={id:id,nome:d.nome,cargo:d.cargo,email:d.email,dias:d.dias,ts:Date.now()};
+  salvarPerfil(ss,p);
+  sh.getRange(v.length+1,1,1,7).setValues([[id,d.nome,d.cargo,d.email,ss.getId(),ss.getUrl(),new Date().toISOString()]]);
+  return {id:id,perfil:p,url:ss.getUrl()};
+}
+
+function lerPerfil(ss){
+  var sh=ss.getSheetByName('_perfil');
+  if(!sh||sh.getLastRow()<2) return null;
+  var r=sh.getRange(2,1,1,6).getValues()[0];
+  return {id:String(r[0]),nome:r[1],cargo:r[2],email:r[3],dias:JSON.parse(r[4]||'[]'),ts:Number(r[5])||0};
+}
+
+function salvarPerfil(ss,p){
+  var sh=aba(ss,'_perfil',['ID','Nome','Cargo','E-mail','Dias','ts']);
+  sh.getRange(2,1,1,6).setValues([[p.id,p.nome,p.cargo,p.email,JSON.stringify(p.dias),String(p.ts)]]);
+  var t='Folha de Ponto - '+p.nome+' ('+p.id+')';
+  if(ss.getName()!==t) ss.rename(t);
+}
+
+function atualizarRegistro(mestre,p){
+  var sh=aba(mestre,'_colaboradores',CAB_COLAB), v=sh.getDataRange().getValues();
+  for(var i=1;i<v.length;i++) if(String(v[i][0])===p.id){
+    sh.getRange(i+1,2,1,3).setValues([[p.nome,p.cargo,p.email]]);
+    return;
+  }
+}
+
+function sincronizar(mestre,ss,d){
+  var sh=aba(ss,'_registros',['Data','Entrada','Entrada almoço','Saída almoço','Saída','ts1','ts2','ts3','ts4']);
+  var v=sh.getDataRange().getValues(), idx={}, i, k, mudou=false;
+  for(i=1;i<v.length;i++) idx[v[i][0]]=i;
+  for(k in d.recs){
+    var a=d.recs[k], ex=idx[k]!==undefined?v[idx[k]]:null;
+    var t=[], s=[], alt=false;
+    for(i=0;i<4;i++){
+      var et=ex?Number(ex[5+i])||0:0;
+      if(a.ts[i]>et){ t[i]=a.t[i]; s[i]=a.ts[i]; alt=true; }
+      else { t[i]=ex?String(ex[1+i]):''; s[i]=et; }
+    }
+    if(!alt) continue;
+    var row=[k].concat(t,s);
+    if(ex) v[idx[k]]=row; else { v.push(row); idx[k]=v.length-1; }
+    mudou=true;
+  }
+  if(mudou){
+    if(sh.getMaxRows()<v.length) sh.insertRowsAfter(sh.getMaxRows(),v.length-sh.getMaxRows()+200);
+    sh.getRange(1,1,v.length,9).setValues(v);
+  }
+  var recs={};
+  for(i=1;i<v.length;i++){
+    if(d.meses.indexOf(String(v[i][0]).slice(0,7))>=0)
+      recs[v[i][0]]={t:v[i].slice(1,5).map(String),ts:v[i].slice(5,9).map(Number)};
+  }
+  var cur=lerPerfil(ss);
+  if(d.perfil && (!cur || d.perfil.ts>cur.ts)){
+    cur=d.perfil; cur.id=d.id;
+    salvarPerfil(ss,cur);
+    atualizarRegistro(mestre,cur);
+  }
+  return {recs:recs,perfil:cur,url:ss.getUrl()};
+}
+
+function desenhar(ss,d){
+  var nome=String(d.aba).replace(/[^A-Za-z0-9 À-ÿ]/g,'').slice(0,60);
+  var sh=ss.getSheetByName(nome)||ss.insertSheet(nome);
+  var m=d.matriz, n=m.length, c=m[0].length;
+  sh.clear();
+  sh.getRange(1,1,n,c).setNumberFormat('@').setValues(m)
+    .setHorizontalAlignment('center').setVerticalAlignment('middle');
+  sh.getRange(1,1).setFontSize(14).setFontWeight('bold');
+  sh.getRange(2,1,d.cab-2,1).setFontWeight('bold');
+  sh.getRange(d.cab+1,1,1,c).setFontWeight('bold')
+    .setBackground('#1e3a8a').setFontColor('#ffffff');
+  d.vermelhos.forEach(function(i){
+    sh.getRange(i+1,1,1,c).setBackground('#fee2e2')
+      .setFontColor('#b91c1c').setFontWeight('bold');
+  });
+  sh.getRange(d.rodape+1,1,1,c).setFontWeight('bold').setBackground('#e5e7eb');
+  sh.getRange(d.cab+1,1,n-d.cab,c).setBorder(true,true,true,true,true,true);
+  sh.setColumnWidths(1,c,125);
+  sh.setColumnWidth(9,260);
+  var f=ss.getSheets()[0];
+  if(f.getLastRow()===0 && ss.getSheets().length>1) ss.deleteSheet(f);
+  return {ok:true};
+}`;
+
+/* ---------- cadastro ---------- */
+function loadForm(){
+  const p=S.prof;
+  $('#f_nome').value=p.nome;$('#f_cargo').value=p.cargo;$('#f_email').value=p.email;$('#f_idin').value=p.id||'';
+  $('#f_dias').innerHTML=ABR.map((a,i)=>`<label><input type="checkbox" value="${i}" ${p.dias.includes(i)?'checked':''}>${a}</label>`).join('');
+}
+async function saveProf(){
+  const nome=$('#f_nome').value.trim(),cargo=$('#f_cargo').value.trim(),email=$('#f_email').value.trim(),idin=$('#f_idin').value.trim();
+  if(!nome){toast('Informe o nome completo');return}
+  if(email&&!/^\S+@\S+\.\S+$/.test(email)){toast('E-mail inválido');return}
+  if(idin&&!/^\d{4}$/.test(idin)){toast('O ID deve ter 4 números');return}
+  const dias=[...document.querySelectorAll('#f_dias input:checked')].map(i=>+i.value);
+  const trocou=!!(idin&&S.prof.id&&idin!==S.prof.id);
+  if(trocou&&!confirm('Trocar para o ID '+idin+'? Os horários salvos neste aparelho serão substituídos pelos desse ID.'))return;
+  const novo={id:idin||S.prof.id||'',nome,cargo,email,dias,ts:Date.now()};
+  const limpar=()=>{if(trocou){S.rec={};S.ts={}}};
+  if(S.url&&(!novo.id||novo.id!==S.prof.id)){
+    toast('Cadastrando...');
+    try{
+      const j=await registrar(novo);
+      if(j.erro){toast(j.erro);return}
+    }catch(e){toast('Não consegui falar com a planilha. Confira o link.');return}
+    limpar();save();render();$('#cad').open=false;
+    toast('Cadastro salvo. Seu ID: '+pid());agendar(true);return;
+  }
+  limpar();S.prof=novo;save();render();$('#cad').open=false;
+  toast(novo.id?'Cadastro salvo':'Cadastro salvo. O ID será gerado quando você salvar o link da planilha');
+  if(novo.id)agendar(true);
+}
+
+/* ---------- eventos ---------- */
+document.querySelectorAll('nav button').forEach(b=>b.onclick=()=>{
+  document.querySelectorAll('nav button,section').forEach(e=>e.classList.remove('on'));
+  b.classList.add('on');$('#'+b.dataset.tab).classList.add('on');
+});
+document.addEventListener('click',e=>{const b=e.target.closest('.ed');if(b)openEdit(b.dataset.k)});
+$('#punch').onclick=punch;
+$('#month').onchange=()=>{renderGrid();agendar()};
+$('#copy').onclick=()=>copyText(tsv());
+$('#csv').onclick=downloadCSV;
+$('#dsave').onclick=saveEdit;
+$('#dcancel').onclick=()=>$('#dlg').close();
+$('#dclear').onclick=()=>{if(confirm('Apagar todos os horários deste dia?')){S.rec[editK]=['','','',''];touch(editK,[0,1,2,3]);save();render();$('#dlg').close();agendar(true)}};
+$('#saveprof').onclick=saveProf;
+$('#saveurl').onclick=()=>{const u=$('#url').value.trim();
+  if(u&&!/^https:\/\/script\.google\.com\/.+\/exec$/.test(u)){toast('O link deve começar com https://script.google.com e terminar em /exec');return}
+  if(u!==S.url)S.link='';S.url=u;save();toast(S.url?'Link salvo':'Link removido');if(S.url)agendar(true)};
+$('#copyscript').onclick=()=>copyText(GS);
+$('#openss').onclick=()=>S.link?window.open(S.link,'_blank'):toast('Sincronize primeiro para gerar a planilha');
+$('#sendall').onclick=()=>{
+  if(!S.url){toast('Salve o link primeiro');return}
+  if(!S.prof.nome){toast('Preencha o cadastro primeiro');return}
+  toast('Sincronizando...');agendar(true);
+};
+
+/* ---------- início ---------- */
+if(!S.prof||!Array.isArray(S.prof.dias))S.prof={nome:'',cargo:'',email:'',dias:[1,2,3,4,5]};
+if(!S.ts)S.ts={};
+for(const k in S.rec)if(!S.ts[k])S.ts[k]=S.rec[k].map(x=>x?1:0);
+const agora=new Date();
+$('#month').value=agora.getFullYear()+'-'+pad(agora.getMonth()+1);
+$('#url').value=S.url||'';
+$('#script').textContent=GS;
+loadForm();
+if(!S.prof.nome)$('#cad').open=true;
+tick();setInterval(tick,1000);
+agendar();
+document.addEventListener('visibilitychange',()=>{if(!document.hidden)agendar()});
+setInterval(()=>{if(!document.hidden)agendar()},120000);
+</script>
+</body>
+</html>
